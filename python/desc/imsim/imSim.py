@@ -10,6 +10,7 @@ import logging
 import gc
 import copy
 import galsim
+import pandas as pd
 
 # python_future no longer handles configparser as of 0.16.
 # This is needed for PY2/3 compatabiloty.
@@ -179,16 +180,33 @@ def sources_from_file(file_name, obs_md, phot_params, numRows=None):
 
     camera = get_obs_lsstSim_camera()
 
-    num_objects = 0
-    ct_rows = 0
-    with open(file_name, 'r') as input_file:
-        for line in input_file:
-            ct_rows += 1
-            params = line.strip().split()
-            if params[0] == 'object':
-                num_objects += 1
-            if numRows is not None and ct_rows>=numRows:
-                break
+    columnNames = ['STRING', 'ID', 'RA', 'DEC', 'MAG_NORM', 'SED_NAME',
+                   'REDSHIFT', 'GAMMA1', 'GAMMA2', 'KAPPA',
+                   'DELTA_RA', 'DELTA_DEC',
+                   'SOURCE_TYPE',
+                   'PAR13', 'PAR14', 'PAR15', 'PAR16',
+                   'PAR17', 'PAR18', 'PAR19', 'PAR20', 'PAR21', 'PAR22']
+
+    dataFrame = pd.read_csv(file_name, names=columnNames, nrows=numRows,
+                            delim_whitespace=True, comment='#')
+
+    dataFrame.fillna('0.0', inplace=True)
+
+    astro_sources = dataFrame.query("STRING == 'object'")
+    point_sources_no_internal = astro_sources.query("SOURCE_TYPE == 'point'").query("PAR13=='none'")
+    point_sources_ccm = astro_sources.query("SOURCE_TYPE == 'point'").query("PAR13=='CCM'")
+    sersic_sources_no_internal = astro_sources.query("SOURCE_TYPE == 'sersic2d'").query("PAR17 == 'none'")
+    sersic_sources_ccm = astro_sources.query("SOURCE_TYPE == 'sersic2d'").query("PAR17 == 'CCM'")
+
+    num_point_no_internal = len(point_sources_no_internal)
+    num_point_ccm = len(point_sources_ccm)
+    num_sersic_no_internal = len(sersic_sources_no_internal)
+    num_sersic_ccm = len(sersic_sources_ccm)
+
+    num_objects = num_point_no_internal + \
+                  num_point_ccm + \
+                  num_sersic_no_internal + \
+                  num_sersic_ccm
 
     # RA, Dec in the coordinate system expected by PhoSim
     ra_phosim = np.zeros(num_objects, dtype=float)
@@ -213,52 +231,84 @@ def sources_from_file(file_name, obs_md, phot_params, numRows=None):
     unique_id = np.zeros(num_objects, dtype=int)
     object_type = np.zeros(num_objects, dtype=int)
 
-    i_obj = -1
-    with open(file_name, 'r') as input_file:
-        for line in input_file:
-            params = line.strip().split()
-            if params[0] != 'object':
-                continue
-            if numRows is not None and i_obj>=num_objects:
-                break
-            i_obj += 1
-            unique_id[i_obj] = int(params[1])
-            ra_phosim[i_obj] = float(params[2])
-            dec_phosim[i_obj] = float(params[3])
-            mag_norm[i_obj] = float(params[4])
-            sed_name[i_obj] = params[5]
-            redshift[i_obj] = float(params[6])
-            gamma1[i_obj] = float(params[7])
-            gamma2[i_obj] = float(params[8])
-            kappa[i_obj] = float(params[9])
-            if params[12].lower() == 'point':
-                object_type[i_obj] = _POINT_SOURCE
-                i_gal_dust_model = 14
-                if params[13].lower() != 'none':
-                    i_gal_dust_model = 16
-                    internal_av[i_obj] = float(params[14])
-                    internal_rv[i_obj] =float(params[15])
-                if params[i_gal_dust_model].lower() != 'none':
-                    galactic_av[i_obj] = float(params[i_gal_dust_model+1])
-                    galactic_rv[i_obj] = float(params[i_gal_dust_model+2])
-            elif params[12].lower() == 'sersic2d':
-                object_type[i_obj] = _SERSIC_2D
-                semi_major_arcsec[i_obj] = float(params[13])
-                semi_minor_arcsec[i_obj] = float(params[14])
-                position_angle_degrees[i_obj] = float(params[15])
-                sersic_index[i_obj] = float(params[16])
-                i_gal_dust_model = 18
-                if params[17].lower() != 'none':
-                    i_gal_dust_model = 20
-                    internal_av[i_obj] = float(params[18])
-                    internal_rv[i_obj] = float(params[19])
-                if params[i_gal_dust_model].lower() != 'none':
-                    galactic_av[i_obj] = float(params[i_gal_dust_model+1])
-                    galactic_rv[i_obj] =float(params[i_gal_dust_model+2])
+    num_running = 0
 
-            else:
-                raise RuntimeError("Do not know how to handle "
-                                   "object type: %s" % params[12])
+    ### put point sources without internal dust in arrays first
+    unique_id[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['ID']).tolist()
+    object_type[:num_point_no_internal] = _POINT_SOURCE
+    ra_phosim[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['RA']).tolist()
+    dec_phosim[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['DEC']).tolist()
+    mag_norm[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['MAG_NORM']).tolist()
+    sed_name[:num_point_no_internal] = point_sources_no_internal['SED_NAME'].tolist()
+    redshift[:num_point_no_internal] = point_sources_no_internal['REDSHIFT'].tolist()
+    gamma1[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['GAMMA1']).tolist()
+    gamma2[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['GAMMA2']).tolist()
+    kappa[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['KAPPA']).tolist()
+    galactic_av[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['PAR15']).tolist()
+    galactic_rv[:num_point_no_internal] = pd.to_numeric(point_sources_no_internal['PAR16']).tolist()
+
+    num_running += num_point_no_internal
+
+    ### put point sources with internal dust into arrays
+    unique_id[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['ID']).tolist()
+    object_type[num_running:num_running+num_point_ccm] = _POINT_SOURCE
+    ra_phosim[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['RA']).tolist()
+    dec_phosim[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['DEC']).tolist()
+    mag_norm[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['MAG_NORM']).tolist()
+    sed_name[num_running:num_running+num_point_ccm] = point_sources_ccm['SED_NAME'].tolist()
+    redshift[num_running:num_running+num_point_ccm] = point_sources_ccm['REDSHIFT'].tolist()
+    gamma1[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['GAMMA1']).tolist()
+    gamma2[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['GAMMA2']).tolist()
+    kappa[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['KAPPA']).tolist()
+    internal_av[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['PAR14']).tolist()
+    internal_rv[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['PAR15']).tolist()
+    galactic_av[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['PAR17']).tolist()
+    galactic_rv[num_running:num_running+num_point_ccm] = pd.to_numeric(point_sources_ccm['PAR18']).tolist()
+
+
+    num_running += num_point_ccm
+
+    ### put sersics with no internal dust into arrays
+
+    unique_id[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['ID']).tolist()
+    object_type[num_running:num_running+num_sersic_no_internal] = _SERSIC_2D
+    ra_phosim[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['RA']).tolist()
+    dec_phosim[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['DEC']).tolist()
+    mag_norm[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['MAG_NORM']).tolist()
+    sed_name[num_running:num_running+num_sersic_no_internal] = sersic_sources_no_internal['SED_NAME'].tolist()
+    redshift[num_running:num_running+num_sersic_no_internal] = sersic_sources_no_internal['REDSHIFT'].tolist()
+    gamma1[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['GAMMA1']).tolist()
+    gamma2[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['GAMMA2']).tolist()
+    kappa[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['KAPPA']).tolist()
+    semi_major_arcsec[num_running:num_running+num_sersic_no_internal]= pd.to_numeric(sersic_sources_no_internal['PAR13']).tolist()
+    semi_minor_arcsec[num_running:num_running+num_sersic_no_internal]= pd.to_numeric(sersic_sources_no_internal['PAR14']).tolist()
+    position_angle_degrees[num_running:num_running+num_sersic_no_internal]= pd.to_numeric(sersic_sources_no_internal['PAR15']).tolist()
+    sersic_index[num_running:num_running+num_sersic_no_internal]= pd.to_numeric(sersic_sources_no_internal['PAR16']).tolist()
+    galactic_av[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['PAR19']).tolist()
+    galactic_rv[num_running:num_running+num_sersic_no_internal] = pd.to_numeric(sersic_sources_no_internal['PAR20']).tolist()
+
+    num_running += num_sersic_no_internal
+
+    ### put sersics with CCM dust into arrays
+
+    unique_id[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['ID']).tolist()
+    object_type[num_running:num_running+num_sersic_ccm] = _SERSIC_2D
+    ra_phosim[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['RA']).tolist()
+    dec_phosim[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['DEC']).tolist()
+    mag_norm[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['MAG_NORM']).tolist()
+    sed_name[num_running:num_running+num_sersic_ccm] = sersic_sources_ccm['SED_NAME'].tolist()
+    redshift[num_running:num_running+num_sersic_ccm] = sersic_sources_ccm['REDSHIFT'].tolist()
+    gamma1[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['GAMMA1']).tolist()
+    gamma2[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['GAMMA2']).tolist()
+    kappa[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['KAPPA']).tolist()
+    semi_major_arcsec[num_running:num_running+num_sersic_ccm]= pd.to_numeric(sersic_sources_ccm['PAR13']).tolist()
+    semi_minor_arcsec[num_running:num_running+num_sersic_ccm]= pd.to_numeric(sersic_sources_ccm['PAR14']).tolist()
+    position_angle_degrees[num_running:num_running+num_sersic_ccm]= pd.to_numeric(sersic_sources_ccm['PAR15']).tolist()
+    sersic_index[num_running:num_running+num_sersic_ccm]= pd.to_numeric(sersic_sources_ccm['PAR16']).tolist()
+    internal_av[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['PAR18']).tolist()
+    internal_rv[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['PAR19']).tolist()
+    galactic_av[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['PAR21']).tolist()
+    galactic_rv[num_running:num_running+num_sersic_ccm] = pd.to_numeric(sersic_sources_ccm['PAR22']).tolist()
 
     ra_appGeo, dec_appGeo = PhoSimAstrometryBase._appGeoFromPhoSim(np.radians(ra_phosim),
                                                                    np.radians(dec_phosim),
