@@ -10,3 +10,5 @@ from .focalplane_info import *
 from .skyModel import *
 from .atmPSF import *
 from .fopen import *
+from .cosmic_rays import *
+from .optical_system import OpticalZernikes
