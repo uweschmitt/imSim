@@ -24,7 +24,7 @@ class InstCatTrimmerTestCase(unittest.TestCase):
 
         # Check the application of minsource.
         objs = desc.imsim.InstCatTrimmer(instcat, [sensor], minsource=10)
-        self.assertEqual(len(objs[sensor]), 24)
+        self.assertEqual(len(objs[sensor]), 21)
 
         objs = desc.imsim.InstCatTrimmer(instcat, [sensor], minsource=12)
         self.assertEqual(len(objs[sensor]), 0)
@@ -33,7 +33,7 @@ class InstCatTrimmerTestCase(unittest.TestCase):
         for chunk_size in (5, 10, 100):
             objs = desc.imsim.InstCatTrimmer(instcat, [sensor], minsource=None,
                                              chunk_size=chunk_size)
-            self.assertEqual(len(objs[sensor]), 24)
+            self.assertEqual(len(objs[sensor]), 21)
 
     def test_inf_filter(self):
         """
@@ -46,7 +46,7 @@ class InstCatTrimmerTestCase(unittest.TestCase):
                                'bad_instcat.txt')
         sensor = 'R:2,2 S:1,1'
         objs = desc.imsim.InstCatTrimmer(instcat, [sensor], minsource=10)
-        self.assertEqual(len(objs[sensor]), 26)
+        self.assertEqual(len(objs[sensor]), 23)
 
 
 if __name__ == '__main__':

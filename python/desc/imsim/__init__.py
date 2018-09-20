@@ -19,3 +19,4 @@ from .bleed_trails import *
 from .process_monitor import *
 from .instcat_tools import *
 from .flats import *
+from .fp_binner import *

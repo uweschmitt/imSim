@@ -7,6 +7,7 @@ import numpy as np
 import lsst.sims.coordUtils
 from lsst.sims.utils import _angularSeparation
 import desc.imsim
+from .fp_binner import FocalPlaneBinner
 
 __all__ = ['InstCatTrimmer']
 
@@ -63,6 +64,22 @@ class Disaggregator:
             self._magnorm[i] = np.float(tokens[4])
         self._camera = desc.imsim.get_obs_lsstSim_camera()
 
+        # TODO: Sort objects by magnorm.
+
+        # Convert object ra, dec values to focalplane locations.
+        xpos, ypos = self.trimmer.fp_binner.fpFromRaDec(self._ra, self._dec)
+        # Bin by detector.
+        self._obj_lists = defaultdict(list)
+        self._sersic_lists = defaultdict(list)
+        for i, xx, yy in zip(range(len(xpos)), xpos, ypos):
+            det_name = self.trimmer.fp_binner(xx, yy)
+            # If object is in already-drawn objects, skip it.
+            if (det_name in self.trimmer.drawn_objects
+                    and self._ids[i] in self.trimmer.drawn_objects[det_name]):
+                continue
+            self._obj_lists[det_name].append(self.object_lines[i])
+            self._sersic_lists[det_name].append(self._sersic[i])
+
     def compute_chip_center(self, chip_name):
         """
         Compute the center of the desired chip in focalplane pixel
@@ -83,7 +100,7 @@ class Disaggregator:
             camera=self._camera, obs_metadata=self.trimmer.obs_md, epoch=2000.0,
             includeDistortion=True)
 
-    def get_object_entries(self, chip_name, radius=0.18, sort_magnorm=True):
+    def get_object_entries(self, chip_name):
         """
         Get the object entries within an acceptance cone centered on
         a specified CCD.
@@ -92,10 +109,6 @@ class Disaggregator:
         ----------
         chip_name: str
             Name of the CCD, e.g., "R:2,2 S:1,1".
-        radius: float [0.18]
-            Radius, in degrees, of the acceptance cone.
-        sort_magnorm: bool [True]
-            Flag to sort the output list by ascending magnorm value.
 
         Returns
         -------
@@ -103,25 +116,7 @@ class Disaggregator:
                     number of sersic objects for minsource application)
 
         """
-        ra0, dec0 = self.compute_chip_center(chip_name)
-        seps = degrees_separation(ra0, dec0, self._ra, self._dec)
-        if chip_name in self.trimmer.drawn_objects:
-            not_drawn = [not x in self.trimmer.drawn_objects[chip_name]
-                         for x in self._ids]
-            index = np.where((seps < radius) & not_drawn)
-            self.trimmer.logger.debug("avoiding drawn objects")
-            self.trimmer.logger.debug(index)
-        else:
-            index = np.where(seps < radius)
-
-        # Collect the selected objects.
-        selected = [self.object_lines[i] for i in index[0]]
-        if sort_magnorm:
-            # Sort by magnorm.
-            sorted_index = np.argsort(self._magnorm[index])
-            selected = [selected[i] for i in sorted_index]
-
-        return selected, sum(self._sersic[index])
+        return self._obj_lists[chip_name], sum(self._sersic_lists[chip_name])
 
 class InstCatTrimmer(dict):
     """
@@ -140,8 +135,8 @@ class InstCatTrimmer(dict):
 
     """
     def __init__(self, instcat, sensor_list, checkpoint_files=None,
-                 chunk_size=int(3e5), radius=0.18, numRows=None,
-                 minsource=None, log_level='INFO'):
+                 chunk_size=int(3e5), numRows=None, minsource=None,
+                 log_level='INFO'):
         """
         Parameters
         ----------
@@ -155,12 +150,9 @@ class InstCatTrimmer(dict):
             Checkpoint files keyed by sensor name, e.g., "R:2,2 S:1,1".
             The instance catalog lines corresponding to drawn_objects in
             the checkpoint files will be skipped on ingest.
-        chunk_size: int [int(1e5)]
+        chunk_size: int [int(3e5)]
             Number of lines to read in at a time from the instance catalogs
             to avoid excess memory usage.
-        radius: float [0.18]
-            Radius in degrees for the acceptance cone to use for each
-            sensor.
         numRows: int [None]
             Maximum number of rows to read in from the instance catalog.
         minsource: int [None]
@@ -173,11 +165,11 @@ class InstCatTrimmer(dict):
         self.logger = desc.imsim.get_logger(log_level, 'InstCatTrimmer')
         self.instcat_file = instcat
         self._read_commands()
+        self.fp_binner = FocalPlaneBinner(self.obs_md)
         if minsource is not None:
             self.minsource = minsource
         self._read_drawn_objects(checkpoint_files)
-        self._process_objects(sensor_list, chunk_size, radius=radius,
-                              numRows=numRows)
+        self._process_objects(sensor_list, chunk_size, numRows=numRows)
 
     def _read_drawn_objects(self, checkpoint_files):
         """
@@ -191,8 +183,7 @@ class InstCatTrimmer(dict):
                 ckpt = pickle.load(fd)
                 self.drawn_objects[detname] = ckpt['drawn_objects']
 
-    def _process_objects(self, sensor_list, chunk_size, radius=0.18,
-                         numRows=None):
+    def _process_objects(self, sensor_list, chunk_size, numRows=None):
         """
         Loop over chunks of lines from the instance catalog
         and disaggregate the entries into the separate object lists
@@ -214,8 +205,7 @@ class InstCatTrimmer(dict):
                     object_lines.append(line)
                 disaggregator = Disaggregator(object_lines, self)
                 for sensor in self:
-                    obj_list, nsersic = disaggregator\
-                        .get_object_entries(sensor, radius=radius)
+                    obj_list, nsersic = disaggregator.get_object_entries(sensor)
                     self[sensor].extend(obj_list)
                     num_gals[sensor] += nsersic
                 if ichunk < chunk_size - 1:
