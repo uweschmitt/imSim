@@ -16,7 +16,10 @@ class Indexer:
         self.dx = dx
         self.x0 = x0
     def __call__(self, xval):
-        return int((xval - self.x0)/self.dx)
+        if isinstance(xval, np.ndarray):
+            return ((xval - self.x0)/self.dx).astype(np.int)
+        else:
+            return int((xval - self.x0)/self.dx)
 
 class FocalPlaneBinner:
     """
@@ -90,6 +93,7 @@ class FocalPlaneBinner:
         y-directions.
         """
         self.det_mapping = dict()
+        self.pair_mapping = dict()
         for det in self.camera:
             if det.getType() != cameraGeom.SCIENCE:
                 continue
@@ -98,3 +102,4 @@ class FocalPlaneBinner:
             ix = self.x_indexer(xx[0])
             iy = self.y_indexer(yy[0])
             self.det_mapping[(ix, iy)] = det_name
+            self.pair_mapping[det_name] = (ix, iy)

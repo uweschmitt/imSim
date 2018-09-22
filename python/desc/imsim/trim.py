@@ -45,15 +45,16 @@ class Disaggregator:
             An instance of the InstCatTrimmer class to provide
             visit-level metadata.
         """
+        num_objects = len(object_lines)
         self.object_lines = object_lines
         self.trimmer = trimmer
 
         # Extract the ra, dec values for each object.
         self._ids = []
-        self._ra = np.zeros(len(object_lines), dtype=np.float)
-        self._dec = np.zeros(len(object_lines), dtype=np.float)
-        self._sersic = np.zeros(len(object_lines), dtype=np.int)
-        self._magnorm = np.zeros(len(object_lines), dtype=np.float)
+        self._ra = np.zeros(num_objects, dtype=np.float)
+        self._dec = np.zeros(num_objects, dtype=np.float)
+        self._sersic = np.zeros(num_objects, dtype=np.int)
+        self._magnorm = np.zeros(num_objects, dtype=np.float)
         for i, line in enumerate(object_lines):
             tokens = line.strip().split()
             self._ids.append(tokens[1])
@@ -67,18 +68,33 @@ class Disaggregator:
         # TODO: Sort objects by magnorm.
 
         # Convert object ra, dec values to focalplane locations.
+        self.trimmer.logger.debug("transforming ra, dec values to "
+                                  "focalplane coords")
         xpos, ypos = self.trimmer.fp_binner.fpFromRaDec(self._ra, self._dec)
+
         # Bin by detector.
+        self.trimmer.logger.debug("looping over object positions "
+                                  "to find detectors")
+        obj_lines = np.array(self.object_lines)
         self._obj_lists = defaultdict(list)
         self._sersic_lists = defaultdict(list)
-        for i, xx, yy in zip(range(len(xpos)), xpos, ypos):
-            det_name = self.trimmer.fp_binner(xx, yy)
-            # If object is in already-drawn objects, skip it.
-            if (det_name in self.trimmer.drawn_objects
-                    and self._ids[i] in self.trimmer.drawn_objects[det_name]):
+        self.trimmer.logger.debug("forming index pairs")
+        index_pairs = list(zip(self.trimmer.fp_binner.x_indexer(xpos),
+                               self.trimmer.fp_binner.y_indexer(ypos)))
+        pair_set = set(index_pairs)
+        for det_name in self.trimmer:
+            if num_objects == 0:
                 continue
-            self._obj_lists[det_name].append(self.object_lines[i])
-            self._sersic_lists[det_name].append(self._sersic[i])
+            pair = self.trimmer.fp_binner.pair_mapping[det_name]
+            if det_name in self.trimmer.drawn_objects:
+                not_drawn = [not x in self.trimmer.drawn_objects[det_name]
+                             for x in self._ids]
+            else:
+                not_drawn = [True]*num_objects
+            condition = np.array(not_drawn) & [x == pair for x in index_pairs]
+            index = np.where(condition)
+            self._obj_lists[det_name].extend(obj_lines[index])
+            self._sersic_lists[det_name].extend(self._sersic[index])
 
     def compute_chip_center(self, chip_name):
         """
@@ -199,10 +215,10 @@ class InstCatTrimmer(dict):
                 ichunk = 0
                 for ichunk, line in zip(range(chunk_size), fd):
                     nread += 1
-                    if (not line.startswith('object') or
-                            'inf' in line.split()):
+                    if not line.startswith('object') or ' inf ' in line:
                         continue
                     object_lines.append(line)
+                self.logger.debug("ingested %d objects", nread)
                 disaggregator = Disaggregator(object_lines, self)
                 for sensor in self:
                     obj_list, nsersic = disaggregator.get_object_entries(sensor)
