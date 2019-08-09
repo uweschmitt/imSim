@@ -22,7 +22,7 @@ def make_sky_model(obs_metadata, photParams, seed=None, bandpassDict=None,
                    logger=None, fast_silicon=True, disable_sky_model=False):
     "Function to provide ESOSkyModel object."
     if disable_sky_model:
-        return NullSkyModel()
+        return NullSkyModel(obs_metadata, photParams, seed, bandpassDict, logger)
     if apply_sensor_model:
         if fast_silicon:
             return FastSiliconSkyModel(obs_metadata, photParams,
@@ -126,8 +126,12 @@ class NullSkyModel(NoiseAndBackgroundBase):
     FITS file for object injection or for testing individual object
     rendering.
     """
-    def __init__(self):
-        pass
+    def __init__(self, obs_metadata, photParams, seed,
+                 bandpassDict, logger):
+        self.eso_sky_model = ESOSkyModel(obs_metadata, photParams,
+                                         seed=seed,
+                                         bandpassDict=bandpassDict,
+                                         logger=logger)
 
     def addNoiseAndBackground(self, image, **kwds):
         """
@@ -138,7 +142,7 @@ class NullSkyModel(NoiseAndBackgroundBase):
 
     def sky_counts(self, chipName):
         """Return zero sky background counts."""
-        return 0
+        return self.eso_sky_model.sky_counts(chipName)
 
 class ESOSkyModel(NoiseAndBackgroundBase):
     """
