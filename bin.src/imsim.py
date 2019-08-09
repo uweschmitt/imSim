@@ -50,6 +50,10 @@ parser.add_argument('--image_path', type=str, default=None,
                     "This will be prepended to any existing IMSIM_IMAGE_PATH "
                     "environment variable, for which $CWD is included by "
                     "default.")
+parser.add_argument('--input_centroid_file_dir', type=str, default=None,
+                    help="Directory containing centroid files to use for the "
+                    "realized fluxes of objects.  If None, then the realized "
+                    "fluxes will be computed.")
 
 args = parser.parse_args()
 
@@ -89,6 +93,7 @@ with warnings.catch_warnings():
                                     apply_sensor_model=apply_sensor_model,
                                     create_centroid_file=args.create_centroid_file,
                                     file_id=args.file_id,
-                                    log_level=args.log_level)
+                                    log_level=args.log_level,
+                                    input_centroid_file_dir=args.input_centroid_file_dir)
 
     image_simulator.run(processes=args.processes)

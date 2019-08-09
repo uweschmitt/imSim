@@ -3,7 +3,9 @@ Code to manage the parallel simulation of sensors using the
 multiprocessing module.
 """
 import os
+import sys
 import re
+import glob
 import multiprocessing
 import warnings
 import gzip
@@ -49,7 +51,8 @@ class ImageSimulator:
     """
     def __init__(self, instcat, psf, numRows=None, config=None, seed=267,
                  outdir='fits', sensor_list=None, apply_sensor_model=True,
-                 create_centroid_file=False, file_id=None, log_level='WARN'):
+                 create_centroid_file=False, file_id=None, log_level='WARN',
+                 input_centroid_file_dir=None):
         """
         Parameters
         ----------
@@ -80,6 +83,9 @@ class ImageSimulator:
             If None, then no checkpoint file will be used
         log_level: str ['WARN']
             Logging level ('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL').
+        input_centroid_file_dir: str [None]
+            Directory of centroid files from a previous run for this visit
+            to provide realized fluxes for the objects.
         """
         self.config = read_config(config)
         self.log_level = log_level
@@ -100,6 +106,7 @@ class ImageSimulator:
         self.gs_obj_dict = sources[1]
         self.apply_sensor_model = apply_sensor_model
         self.file_id = file_id
+        self._input_centroid_file_dir = input_centroid_file_dir
         self._make_gs_interpreters(seed, sensor_list, file_id)
         self.log_level = log_level
         self.logger = get_logger(self.log_level, name='ImageSimulator')
@@ -118,6 +125,15 @@ class ImageSimulator:
             if os.path.isfile(filename):
                 checkpoint_files[det_name] = filename
         return checkpoint_files
+
+    def _find_centroid_file(self, detname):
+        if self._input_centroid_file_dir is None:
+            return None
+        my_detname = 'R{}{}_S{}{}'.format(*[_ for _ in detname if _.isdigit()])
+        pattern = os.path.join(self._input_centroid_file_dir, f'centroid_*{my_detname}*')
+        print(pattern)
+        sys.stdout.flush()
+        return glob.glob(pattern)[0]
 
     def _make_gs_interpreters(self, seed, sensor_list, file_id):
         """
@@ -145,12 +161,14 @@ class ImageSimulator:
                 continue
             gs_det = make_galsim_detector(self.camera_wrapper, det_name,
                                           self.phot_params, self.obs_md)
+            input_centroid_file = self._find_centroid_file(det_name)
             self.gs_interpreters[det_name] \
                 = make_gs_interpreter(self.obs_md, [gs_det], bp_dict,
                                       noise_and_background,
                                       epoch=2000.0, seed=seed,
                                       apply_sensor_model=self.apply_sensor_model,
-                                      bf_strength=self.config['ccd']['bf_strength'])
+                                      bf_strength=self.config['ccd']['bf_strength'],
+                                      input_centroid_file=input_centroid_file)
 
             self.gs_interpreters[det_name].sky_bg_per_pixel \
                 = noise_and_background.sky_counts(det_name)
