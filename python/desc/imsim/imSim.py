@@ -47,6 +47,7 @@ from .fopen import fopen
 from .trim import InstCatTrimmer
 from .sed_wrapper import SedWrapper
 from .atmPSF import AtmosphericPSF
+from .batoidPSF import BatoidPSF
 from .version import __version__ as imsim_version
 
 _POINT_SOURCE = 1
@@ -856,6 +857,27 @@ def make_psf(psf_name, obs_md, log_level='WARN', rng=None, **kwds):
                              band=obs_md.bandpass,
                              rng=rng,
                              logger=logger, **kwds)
+    elif psf_name.lower() == 'batoid':
+        import batoid
+        if rng is None:
+            # Use the 'seed' value from the instance catalog for the rng
+            # used by the atmospheric PSF.
+            rng = galsim.UniformDeviate(obs_md.OpsimMetaData['seed'])
+        if 'gaussianFWHM' not in kwds:
+            # Retrieve the additional instrumental PSF FWHM from the
+            # imSim config file.
+            config = get_config()
+            kwds['gaussianFWHM'] = config['psf']['gaussianFWHM']
+        logger = get_logger(log_level, 'psf')
+        atmPSF = AtmosphericPSF(airmass=my_airmass,
+                                rawSeeing=rawSeeing,
+                                band=obs_md.bandpass,
+                                rng=rng,
+                                logger=logger, **kwds)
+
+        telescope = batoid.Optic.fromYaml(f"LSST_{obs_md.bandpass}.yaml")
+        telescope = telescope.withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3))
+        psf = BatoidPSF(telescope, 620e-9, atmPSF)
     return psf
 
 def save_psf(psf, outfile):
