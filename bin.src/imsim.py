@@ -27,7 +27,7 @@ parser.add_argument('--log_level', type=str,
                     choices=['DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL'],
                     default='INFO', help='Logging level. Default: INFO')
 parser.add_argument('--psf', type=str, default='Kolmogorov',
-                    choices=['DoubleGaussian', 'Kolmogorov', 'Atmospheric'],
+                    choices=['DoubleGaussian', 'Kolmogorov', 'Atmospheric', 'Batoid'],
                     help="PSF model to use.  Default: Kolmogorov")
 parser.add_argument('--disable_sensor_model', default=False,
                     action='store_true',
