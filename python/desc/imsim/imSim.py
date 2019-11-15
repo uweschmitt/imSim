@@ -383,16 +383,45 @@ class GsObjectList:
             ra_phosim[i] = float(tokens[2])
             dec_phosim[i] = float(tokens[3])
             mag_norm[i] = float(tokens[4])
+        print(f"radec_phosim = {ra_phosim[i]}, {dec_phosim[i]}")
         ra_appGeo, dec_appGeo \
             = PhoSimAstrometryBase._appGeoFromPhoSim(np.radians(ra_phosim),
                                                      np.radians(dec_phosim),
                                                      self.obs_md)
+        print(f"radec_appGeo = {ra_appGeo[0]}, {dec_appGeo[0]}")
         ra_obs_rad, dec_obs_rad \
             = _observedFromAppGeo(ra_appGeo, dec_appGeo,
                                   obs_metadata=self.obs_md,
                                   includeRefraction=True)
+        print(f"radec_obs_rad = {ra_obs_rad[0]}, {dec_obs_rad[0]}")
         x_pupil, y_pupil = _pupilCoordsFromObserved(ra_obs_rad, dec_obs_rad,
                                                     self.obs_md)
+        print(f"xy_pupil = {x_pupil}, {y_pupil}")
+
+        print(f"rotSkyPos = {self.obs_md.rotSkyPos}")
+        rTP = 0.6988060000275936
+        rSP = np.deg2rad(self.obs_md.rotSkyPos)
+        q = rTP - rSP
+        cq, sq = np.cos(q), np.sin(q)  # +q or -q here?
+        jac = [cq, -sq, sq, cq]
+        affine = galsim.AffineTransform(*jac)
+        boresight = galsim.CelestialCoord(
+            1.0591794910868821*galsim.radians,
+            -0.6648876602885819*galsim.radians
+        )
+        _radec2batoidfield = galsim.TanWCS(
+            affine, boresight, units=galsim.radians
+        )
+        crSP, srSP = np.cos(-rSP), np.sin(-rSP)
+        jac2 = [crSP, -srSP, srSP, crSP]
+        affine2 = galsim.AffineTransform(*jac2)
+        _radec2pupil = galsim.TanWCS(
+            affine2, boresight, units=galsim.radians
+        )
+        print(_radec2batoidfield.radecToxy(ra_obs_rad, dec_obs_rad, 'radians'))
+        print(_radec2pupil.radecToxy(ra_obs_rad, dec_obs_rad, 'radians'))
+        import ipdb; ipdb.set_trace()
+
         on_chip_dict = _chip_downselect(mag_norm, x_pupil, y_pupil,
                                         self.logger, [chip_name])
         index = on_chip_dict[chip_name]
@@ -806,7 +835,7 @@ def FWHMgeom(rawSeeing, band, altitude):
     return 0.822*FWHMeff(rawSeeing, band, altitude) + 0.052
 
 
-def make_psf(psf_name, obs_md, log_level='WARN', rng=None, **kwds):
+def make_psf(psf_name, obs_md, commands, log_level='WARN', rng=None, **kwds):
     """
     Make the requested PSF object.
 
@@ -818,6 +847,8 @@ def make_psf(psf_name, obs_md, log_level='WARN', rng=None, **kwds):
     obs_md: lsst.sims.utils.ObservationMetaData
         Metadata associated with the visit, e.g., pointing direction,
         observation time, seeing, etc..
+    commands: dict
+        Commands from instance catalog.
     log_level: str ['WARN']
         Logging level ('DEBUG', 'INFO', 'WARN', 'ERROR', 'CRITICAL').
     rng: galsim.BaseDeviate
@@ -869,15 +900,20 @@ def make_psf(psf_name, obs_md, log_level='WARN', rng=None, **kwds):
             config = get_config()
             kwds['gaussianFWHM'] = config['psf']['gaussianFWHM']
         logger = get_logger(log_level, 'psf')
+        kwds['screen_size'] = 102.4
         atmPSF = AtmosphericPSF(airmass=my_airmass,
                                 rawSeeing=rawSeeing,
                                 band=obs_md.bandpass,
                                 rng=rng,
                                 logger=logger, **kwds)
-
-        telescope = batoid.Optic.fromYaml(f"LSST_{obs_md.bandpass}.yaml")
-        telescope = telescope.withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3))
-        psf = BatoidPSF(telescope, 620e-9, atmPSF)
+        # Just make something up until I figure out how to compute it...
+        rotTelPos = np.deg2rad(commands['rottelpos'])
+        telescope = (
+            batoid.Optic.fromYaml(f"LSST_{obs_md.bandpass}.yaml")
+            .withLocallyRotatedOptic("LSSTCamera", batoid.RotZ(rotTelPos))
+            # .withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3))
+        )
+        psf = BatoidPSF(telescope, obs_md.bandpass, atmPSF, rotTelPos)
     return psf
 
 def save_psf(psf, outfile):
