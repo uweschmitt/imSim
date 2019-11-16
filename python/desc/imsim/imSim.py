@@ -383,25 +383,25 @@ class GsObjectList:
             ra_phosim[i] = float(tokens[2])
             dec_phosim[i] = float(tokens[3])
             mag_norm[i] = float(tokens[4])
-        print(f"radec_phosim = {ra_phosim[i]}, {dec_phosim[i]}")
+        # print(f"radec_phosim = {ra_phosim[i]}, {dec_phosim[i]}")
         ra_appGeo, dec_appGeo \
             = PhoSimAstrometryBase._appGeoFromPhoSim(np.radians(ra_phosim),
                                                      np.radians(dec_phosim),
                                                      self.obs_md)
-        print(f"radec_appGeo = {ra_appGeo[0]}, {dec_appGeo[0]}")
+        # print(f"radec_appGeo = {ra_appGeo[0]}, {dec_appGeo[0]}")
         ra_obs_rad, dec_obs_rad \
             = _observedFromAppGeo(ra_appGeo, dec_appGeo,
                                   obs_metadata=self.obs_md,
                                   includeRefraction=True)
-        print(f"radec_obs_rad = {ra_obs_rad[0]}, {dec_obs_rad[0]}")
+        # print(f"radec_obs_rad = {ra_obs_rad[0]}, {dec_obs_rad[0]}")
         x_pupil, y_pupil = _pupilCoordsFromObserved(ra_obs_rad, dec_obs_rad,
                                                     self.obs_md)
-        print(f"xy_pupil = {x_pupil}, {y_pupil}")
-
-        print(f"rotSkyPos = {self.obs_md.rotSkyPos}")
+        # print(f"xy_pupil = {x_pupil[0]}, {y_pupil[0]}")
+        # print(f"rotSkyPos = {self.obs_md.rotSkyPos}")
         rTP = 0.6988060000275936
         rSP = np.deg2rad(self.obs_md.rotSkyPos)
         q = rTP - rSP
+        # print(f"q = {q}")
         cq, sq = np.cos(q), np.sin(q)  # +q or -q here?
         jac = [cq, -sq, sq, cq]
         affine = galsim.AffineTransform(*jac)
@@ -418,10 +418,13 @@ class GsObjectList:
         _radec2pupil = galsim.TanWCS(
             affine2, boresight, units=galsim.radians
         )
-        print(_radec2batoidfield.radecToxy(ra_obs_rad, dec_obs_rad, 'radians'))
-        print(_radec2pupil.radecToxy(ra_obs_rad, dec_obs_rad, 'radians'))
-        import ipdb; ipdb.set_trace()
-
+        ra, dec = _radec2batoidfield.radecToxy(ra_obs_rad, dec_obs_rad, 'radians')
+        # print("batoid field")
+        # print(ra[0], dec[0])
+        ra, dec = _radec2pupil.radecToxy(ra_obs_rad, dec_obs_rad, 'radians')
+        # print(f"xy_pupil = {x_pupil[0]}, {y_pupil[0]}")
+        # print(x_pupil[0], y_pupil[0])
+        # print(ra[0], dec[0])
         on_chip_dict = _chip_downselect(mag_norm, x_pupil, y_pupil,
                                         self.logger, [chip_name])
         index = on_chip_dict[chip_name]
@@ -910,7 +913,7 @@ def make_psf(psf_name, obs_md, commands, log_level='WARN', rng=None, **kwds):
         rotTelPos = np.deg2rad(commands['rottelpos'])
         telescope = (
             batoid.Optic.fromYaml(f"LSST_{obs_md.bandpass}.yaml")
-            .withLocallyRotatedOptic("LSSTCamera", batoid.RotZ(rotTelPos))
+            .withLocallyRotatedOptic("LSSTCamera", batoid.RotZ(-rotTelPos))
             # .withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3))
         )
         psf = BatoidPSF(telescope, obs_md.bandpass, atmPSF, rotTelPos)

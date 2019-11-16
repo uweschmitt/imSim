@@ -4,6 +4,7 @@ from argparse import ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("infile")
 parser.add_argument("outfile")
+parser.add_argument("--radius", default=2.05, type=float)
 parser.add_argument("--n", default=1000, type=int)
 parser.add_argument("--mag_min", default=16.0, type=float)
 parser.add_argument("--mag_max", default=25.0, type=float)
@@ -19,8 +20,8 @@ with open(args.outfile, 'w') as out_fd:
             if line.startswith("declination"):
                 dec = float(line.split()[1])
             out_fd.write(line)
-    ddec = 2.05
-    dra = 2.05/np.cos(np.deg2rad(dec))
+    ddec = args.radius
+    dra = args.radius/np.cos(np.deg2rad(dec))
     for i in range(args.n):
         ra1 = np.random.uniform(-dra, dra)+ra
         dec1 = np.random.uniform(-ddec, ddec)+dec

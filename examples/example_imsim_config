@@ -7,7 +7,7 @@ scti = 1e-6
 disable_readnoise_bias_darkcurrent = False
 
 [sky_model]
-disable_sky_model = False
+disable_sky_model = True
 
 [ccd]
 full_well = 1e5
