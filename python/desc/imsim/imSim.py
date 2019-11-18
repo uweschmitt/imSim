@@ -903,20 +903,26 @@ def make_psf(psf_name, obs_md, commands, log_level='WARN', rng=None, **kwds):
             config = get_config()
             kwds['gaussianFWHM'] = config['psf']['gaussianFWHM']
         logger = get_logger(log_level, 'psf')
-        kwds['screen_size'] = 102.4
         atmPSF = AtmosphericPSF(airmass=my_airmass,
                                 rawSeeing=rawSeeing,
                                 band=obs_md.bandpass,
                                 rng=rng,
                                 logger=logger, **kwds)
-        # Just make something up until I figure out how to compute it...
         rotTelPos = np.deg2rad(commands['rottelpos'])
+        rotSkyPos = np.deg2rad(obs_md.rotSkyPos)
+        parallactic_angle = rotTelPos - rotSkyPos
         telescope = (
             batoid.Optic.fromYaml(f"LSST_{obs_md.bandpass}.yaml")
             .withLocallyRotatedOptic("LSSTCamera", batoid.RotZ(-rotTelPos))
-            # .withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3))
+            # .withGloballyShiftedOptic("LSSTCamera", (0,0,-1.5e-3)) # intra
+            # .withGloballyShiftedOptic("LSSTCamera", (0,0,1.5e-3)) # extra
         )
-        psf = BatoidPSF(telescope, obs_md.bandpass, atmPSF, rotTelPos)
+        psf = BatoidPSF(
+            telescope, obs_md.bandpass, atmPSF, rotTelPos,
+            parallactic_angle,
+            # _field_magnification=18,
+            # _optics_magnification=100,
+        )
     return psf
 
 def save_psf(psf, outfile):
