@@ -5,6 +5,7 @@ import scipy
 from astropy.io import fits
 import galsim
 from galsim.config import ExtraOutputBuilder, RegisterExtraOutput
+from desc.imsim.bleed_trails import bleed_eimage
 
 
 def section_keyword(bounds, flipx=False, flipy=False):
@@ -153,6 +154,9 @@ class CcdReadout:
         """Build the amplifier images applying readout effects and
         repackaging the pixel ordering in readout order."""
         eimage = copy.deepcopy(main_data[0])
+
+        # Bleed trail processing. TODO: Make full_well a config parameter.
+        eimage.array[:] = bleed_eimage(eimage.array, full_well=1e5)
 
         # Add dark current.
         exp_time = base['exp_time']
