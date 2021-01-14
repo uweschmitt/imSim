@@ -51,6 +51,10 @@ input:
         # Camera geometry from lsst.obs.lsst
         file_name: config/LsstCam.pickle
 
+    cosmic_rays:
+        catalog_file: /home/jchiang/work/DESC/imSim/data/cosmic_ray_catalog.fits.gz
+        ccd_rate: 0.2
+
     instance_catalog:
         # This enables InstCat types
         file_name: $cat_name
@@ -257,11 +261,6 @@ output:
     checkpoint:
         nobj: 500
         cleanup: True
-
-    # TODO: Not implemented yet.
-    cosmic_rays:
-        ccd_rate: 0.2    # CTIO rate extracted from DECam darks.
-        catalog: default
 
     # TODO: There is only a skeleton implementation of this so far.
     readout:
