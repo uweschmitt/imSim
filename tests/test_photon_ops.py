@@ -29,7 +29,6 @@ def test_lsst_optics() -> None:
     det_name = "R22_S11"
     lsst_optics = photon_ops.LsstOptics(
         telescope=build_telescope(name="LSST", band="r", rotTelPos=np.pi/3),
-        boresight=boresight,
         sky_pos=galsim.CelestialCoord(0.543 * galsim.radians, -0.174 * galsim.radians),
         image_pos=galsim.PositionD(809.6510740536025, 3432.6477953336625),
         icrf_to_field=factory.get_icrf_to_field(camera[det_name]),

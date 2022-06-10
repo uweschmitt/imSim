@@ -20,50 +20,24 @@ class LsstOptics(PhotonOp):
     ----------
     telescope : batoid.Optic
         The telescope to trace through.
-    boresight : galsim.CelestialCoord
-        The ICRF coordinate of light that reaches the boresight.  Note that this
-        is distinct from the spherical coordinates of the boresight with respect
-        to the ICRF axes.
     sky_pos : galsim.CelestialCoord
     image_pos : galsim.PositionD
     icrf_to_field : galsim.GSFitsWCS
     det_name : str
-    shift_optics : dict[str, list[float]]
-        A dict mapping optics keys to shifts represented by a list of 3 floats.
-        The corresponding optics will be displaced by the specified corrdinates.
-        Example config for perturbed+defocused telescope to obtain a donut:
-        -
-            type: lsst_optics
-            ...
-            shift_optics:
-              Detector: [0, 0, 1.5e-3]
-              M2: [3.0e-3, 0, 0]
-
-
     """
-
-    _req_params = {"telescope": Optic, "band": str, "boresight": CelestialCoord}
-    _opt_params = {"shift_optics": dict}
-
     def __init__(
         self,
         telescope,
-        boresight,
         sky_pos,
         image_pos,
         icrf_to_field,
-        det_name,
-        shift_optics=None,
+        det_name
     ):
-        if shift_optics is not None:
-            for optics_key, shift in shift_optics.items():
-                telescope = telescope.withGloballyShiftedOptic(optics_key, shift)
         self.telescope = telescope
-        self.detector = get_camera()[det_name]
-        self.boresight = boresight
         self.sky_pos = sky_pos
         self.image_pos = image_pos
         self.icrf_to_field = icrf_to_field
+        self.detector = get_camera()[det_name]
 
     def applyTo(self, photon_array, local_wcs=None, rng=None):
         """Apply the photon operator to a PhotonArray.
@@ -152,16 +126,14 @@ class LsstOpticsFactory(PhotonOpBuilder):
         req, opt, single, _takes_rng = get_cls_params(LsstOptics)
         kwargs, _safe = GetAllParams(config, base, req, opt, single)
 
-        # optic = GetInputObj('telescope', config, base, 'batoid.Optic')
+        telescope = GetInputObj('telescope', config, base, 'batoid.Optic')
 
         return LsstOptics(
-            telescope=base["_telescope"],
-            boresight=kwargs["boresight"],
+            telescope=telescope,
             sky_pos=base["sky_pos"],
             image_pos=base["image_pos"],
             icrf_to_field=base["_icrf_to_field"],
             det_name=base["det_name"],
-            shift_optics=kwargs.get("shift_optics"),
         )
 
 
