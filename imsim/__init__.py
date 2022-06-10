@@ -16,3 +16,4 @@ from .skycat import *
 from .skycat_object_wrapper import *
 from .templates import *
 from .photon_ops import *
+from .telescope import *
