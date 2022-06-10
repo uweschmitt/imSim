@@ -39,6 +39,13 @@ input:
         rotTelPos:
             type: Degrees
             theta: { type: OpsimMeta, field: rotTelPos }
+        perturb:  # Add some arbitrary perturbations to the optics
+            -
+                shift:
+                    M2: [0.0001, 0.0, 0.0]  # x, y, z in meters
+                    LSSTCamera: [0.0, 0.00001, 0.0]
+                rotate:
+                    M2: [0.00001, 0.0, 0.0]  # order is always rotX, rotY, rotZ
 
     instance_catalog:
         # This enables InstCat types

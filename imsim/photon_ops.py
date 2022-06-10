@@ -3,11 +3,9 @@
 import numpy as np
 
 import batoid
-from batoid import Optic
 from galsim import PhotonArray, PhotonOp
 from galsim.config import RegisterPhotonOpType, PhotonOpBuilder, GetAllParams, GetInputObj
 
-from galsim.celestial import CelestialCoord
 from galsim.config.util import get_cls_params
 from .camera import get_camera
 from .utils import focal_to_pixel
