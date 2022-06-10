@@ -113,22 +113,16 @@ image:
                 type: Degrees
                 theta: { type: OpsimMeta, field: fieldDec }
 
-        rotTelPos:
-            type: Degrees
-            theta: { type: OpsimMeta, field: rotTelPos }
-
         obstime:
             type: Eval
             str: "astropy.time.Time(mjd_val, format='mjd', scale='tai')"
             fmjd_val: { type: OpsimMeta, field: mjd }
 
         det_name: $det_name
-        band: { type: OpsimMeta, field: band }
         wavelength: "$(@image.bandpass).effective_wavelength"
 
         # The rest can be omitted, since these are the default values, but shown here
         # for reference.
-        telescope: LSST   # This is the only option currently (and the default)
         temperature: 280  # Kelvin
         pressure: 72.7    # kPa
         H2O_pressure: 1.0 # kPa

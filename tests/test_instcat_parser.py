@@ -10,6 +10,7 @@ import numpy as np
 import galsim
 import astropy.time
 import imsim
+from imsim.telescope import build_telescope
 from lsst.afw.cameraGeom import DetectorType
 
 from test_batoid_wcs import sphere_dist
@@ -64,6 +65,7 @@ class InstanceCatalogParserTestCase(unittest.TestCase):
         obstime = astropy.time.Time(obs_md['mjd'], format='mjd', scale='tai')
         band = obs_md['band']
         builder = imsim.BatoidWCSBuilder()
+        telescope = build_telescope("LSST", band, rotTelPos)
 
         if sensors is None:
             camera = imsim.get_camera()
@@ -73,7 +75,7 @@ class InstanceCatalogParserTestCase(unittest.TestCase):
         all_wcs = {}
         for det_name in sensors:
             if det_name not in all_wcs:
-                factory = builder.makeWCSFactory(boresight, rotTelPos, obstime, band)
+                factory = builder.makeWCSFactory(boresight, telescope, obstime)
                 wcs = factory.getWCS(builder.camera[det_name])
                 all_wcs[det_name] = wcs
 

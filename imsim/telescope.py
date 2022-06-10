@@ -10,6 +10,9 @@ def build_telescope(name, band, rotTelPos):
             "LSSTCamera",
             batoid.RotZ(rotTelPos)
         )
+    # Monkey-patch the band onto the telescope so we can use it later
+    # for determining a fiducial wavelength.
+    telescope.band = band
     return telescope
 
 

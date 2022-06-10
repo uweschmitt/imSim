@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import galsim
 import imsim
+from imsim.telescope import build_telescope
 
 DATA_DIR = Path(__file__).parent / 'data'
 
@@ -30,7 +31,8 @@ class SkyCatalogInterfaceTestCase(unittest.TestCase):
         cls.bandpass = galsim.Bandpass(f'LSST_{cls.band}.dat',
                                        wave_type='nm').withZeropoint('AB')
         wcs_builder = imsim.BatoidWCSBuilder()
-        factory = wcs_builder.makeWCSFactory(boresight, rottelpos, obstime, cls.band)
+        telescope = build_telescope("LSST", cls.band, rottelpos)
+        factory = wcs_builder.makeWCSFactory(boresight, telescope, obstime)
         wcs = factory.getWCS(wcs_builder.camera[det_name])
 
         # Create the sky catalog interface object.

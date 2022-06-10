@@ -5,21 +5,20 @@ from astropy.time import Time
 from astropy import units
 
 from imsim import photon_ops, BatoidWCSFactory, get_camera
-from imsim.batoid_utils import load_telescope
+from imsim.telescope import build_telescope
 
 
 def test_lsst_optics() -> None:
     """This just makes sure that the PhotonOp runs. It does not check plausibility
     of results."""
     boresight = galsim.CelestialCoord(0.543 * galsim.radians, -0.174 * galsim.radians)
-    fiducial_telescope = load_telescope(telescope="LSST", band="r")
+    telescope = build_telescope(name="LSST", band="r", rotTelPos=np.pi/3)
     camera = get_camera()
 
     factory = BatoidWCSFactory(
         boresight,
-        rotTelPos=np.pi / 3,
+        telescope,
         obstime=Time("J2020") + 0.5 * units.year,
-        fiducial_telescope=fiducial_telescope,
         wavelength=620.0,  # nm
         camera=camera,
         temperature=290.0,
@@ -29,7 +28,7 @@ def test_lsst_optics() -> None:
 
     det_name = "R22_S11"
     lsst_optics = photon_ops.LsstOptics(
-        telescope=load_telescope(telescope="LSST", band="r"),
+        telescope=build_telescope(name="LSST", band="r", rotTelPos=np.pi/3),
         boresight=boresight,
         sky_pos=galsim.CelestialCoord(0.543 * galsim.radians, -0.174 * galsim.radians),
         image_pos=galsim.PositionD(809.6510740536025, 3432.6477953336625),

@@ -4,7 +4,9 @@ Unit tests for InstCatTrimmer class.
 from pathlib import Path
 import unittest
 import imsim
+from imsim.telescope import build_telescope
 import galsim
+import batoid
 import astropy.time
 
 DATA_DIR = Path(__file__).parent / 'data'
@@ -28,9 +30,9 @@ class InstCatTrimmerTestCase(unittest.TestCase):
         rotTelPos += 180*galsim.degrees  # We used to simulate the camera upside down.
         obstime = astropy.time.Time(obs_md['mjd'], format='mjd', scale='tai')
         band = obs_md['band']
-
+        telescope = build_telescope("LSST", band, rotTelPos)
         builder = imsim.BatoidWCSBuilder()
-        factory = builder.makeWCSFactory(boresight, rotTelPos, obstime, band)
+        factory = builder.makeWCSFactory(boresight, telescope, obstime)
         return factory.getWCS(builder.camera[det_name])
 
     def test_InstCatTrimmer(self):
