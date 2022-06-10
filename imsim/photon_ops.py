@@ -5,7 +5,7 @@ import numpy as np
 import batoid
 from batoid import Optic
 from galsim import PhotonArray, PhotonOp
-from galsim.config import RegisterPhotonOpType, PhotonOpBuilder, GetAllParams
+from galsim.config import RegisterPhotonOpType, PhotonOpBuilder, GetAllParams, GetInputObj
 
 from galsim.celestial import CelestialCoord
 from galsim.config.util import get_cls_params
@@ -152,6 +152,8 @@ class LsstOpticsFactory(PhotonOpBuilder):
         req, opt, single, _takes_rng = get_cls_params(LsstOptics)
         kwargs, _safe = GetAllParams(config, base, req, opt, single)
 
+        # optic = GetInputObj('telescope', config, base, 'batoid.Optic')
+
         return LsstOptics(
             telescope=base["_telescope"],
             boresight=kwargs["boresight"],
@@ -163,4 +165,4 @@ class LsstOpticsFactory(PhotonOpBuilder):
         )
 
 
-RegisterPhotonOpType("lsst_optics", LsstOpticsFactory())
+RegisterPhotonOpType("lsst_optics", LsstOpticsFactory(), input_type='telescope')

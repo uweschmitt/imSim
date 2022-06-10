@@ -480,6 +480,8 @@ class BatoidWCSBuilder(WCSBuilder):
                 "order": int,
               }
 
+        # optic = galsim.config.GetInputObj('telescope', config, base, 'batoid.Optic')
+
         # Make sure the bandpass is built, since we are likely to need it to get the
         # wavelength (either in user specification or the default behavior below).
         if 'bandpass' not in base and 'bandpass' in base.get('image',{}):
@@ -573,4 +575,4 @@ class BatoidWCSBuilder(WCSBuilder):
                                 wavelength, self.camera, temperature, pressure, H2O_pressure)
 
 
-RegisterWCSType('Batoid', BatoidWCSBuilder())
+RegisterWCSType('Batoid', BatoidWCSBuilder(), input_type='telescope')

@@ -17,13 +17,11 @@ class TelescopeLoader(galsim.config.InputLoader):
     def getKwargs(self, config, base, logger):
         req = {
             'name': str,
-            'band': str
-        }
-        opt = {
+            'band': str,
             'rotTelPos': galsim.Angle
         }
         kwargs, safe = galsim.config.GetAllParams(
-            config, base, req=req, opt=opt
+            config, base, req=req
         )
         return kwargs, safe
 
