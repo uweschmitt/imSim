@@ -78,6 +78,7 @@ def compute_rotSkyPos(ra0, dec0, rottelpos, obsmjd, band,
         theta = 90 - theta
     if theta < 0:
         theta += 360
+    _rotSkyPos_cache[args] = theta
     return theta
 
 
