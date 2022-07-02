@@ -20,8 +20,28 @@ _rotSkyPos_cache = {}
 
 def make_batoid_wcs(ra0, dec0, rottelpos, obsmjd, band, camera_name):
     """
-    Create a WCS object from Opsim parameters for the center
+    Create a WCS object from Opsim db parameters for the center
     science CCD.
+
+    Parameters
+    ----------
+    ra0 : float
+        RA of boresight direction in degrees.
+    dec0 : float
+        Dec of boresight direction in degrees.
+    rottelpos : float
+        Angle of the telescope rotator with respect to the mount in degrees.
+    obsmjd : float
+        MJD of the observation.
+    band : str
+        One of `ugrizy`.
+    camera_name : str ['LsstCam']
+        Class name of the camera to be simulated.  Valid values are
+        'LsstCam', 'LsstComCam', 'LsstCamImSim'.
+
+    Returns
+    -------
+    galsim.GSFitsWCS
     """
     obstime = Time(obsmjd, format='mjd')
     boresight = galsim.CelestialCoord(ra0*galsim.degrees, dec0*galsim.degrees)
@@ -42,6 +62,31 @@ def compute_rotSkyPos(ra0, dec0, rottelpos, obsmjd, band,
     Compute the nominal rotation angle of the focal plane wrt
     Celestial North using the +y direction in pixel coordinates as the
     reference direction for the focal plane.
+
+    Parameters
+    ----------
+    ra0 : float
+        RA of boresight direction in degrees.
+    dec0 : float
+        Dec of boresight direction in degrees.
+    rottelpos : float
+        Angle of the telescope rotator with respect to the mount in degrees.
+    obsmjd : float
+        MJD of the observation.
+    band : str
+        One of `ugrizy`.
+    camera_name : str ['LsstCam']
+        Class name of the camera to be simulated.  Valid values are
+        'LsstCam', 'LsstComCam', 'LsstCamImSim'.
+    dxy : float [100]
+        Size (in pixels) of legs of the triangle to use for computing the
+        angle between North and the +y direction in the focal plane.
+    pixel_scale : float [0.2]
+        Pixel scale in arcsec.
+
+    Returns
+    -------
+    float  The rotSkyPos angle in degrees.
     """
     args = ra0, dec0, rottelpos, obsmjd, band, camera_name
     if args in _rotSkyPos_cache:
