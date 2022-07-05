@@ -50,7 +50,7 @@ class RawFileOutputTestCase(unittest.TestCase):
         # Test some keywords.
         self.assertAlmostEqual(hdr['RATEL'], opsim_md['fieldRA'])
         self.assertAlmostEqual(hdr['DECTEL'], opsim_md['fieldDec'])
-        self.assertAlmostEqual(hdr['ROTANGLE'], opsim_md['rotSkyPos'])
+        self.assertAlmostEqual(hdr['ROTANGLE'], opsim_md['rotSkyPos'], places=6)
         self.assertEqual(hdr['CHIPID'], det_name)
 
         # Ensure the following keywords are set.
