@@ -18,7 +18,8 @@ from ._version import __version__
 
 _rotSkyPos_cache = {}
 
-def make_batoid_wcs(ra0, dec0, rottelpos, obsmjd, band, camera_name):
+def make_batoid_wcs(ra0, dec0, rottelpos, obsmjd, band, camera_name,
+                    logger=None):
     """
     Create a WCS object from Opsim db parameters for the center
     science CCD.
@@ -38,11 +39,17 @@ def make_batoid_wcs(ra0, dec0, rottelpos, obsmjd, band, camera_name):
     camera_name : str ['LsstCam']
         Class name of the camera to be simulated.  Valid values are
         'LsstCam', 'LsstComCam', 'LsstCamImSim'.
+    logger : logger.Logger [None]
+        Logger object.
 
     Returns
     -------
     galsim.GSFitsWCS
     """
+    if band not in 'ugrizy':
+        if logger is not None:
+            logger.info(f'Requested band is "{band}.  Setting it to "r"')
+        band = 'r'
     obstime = Time(obsmjd, format='mjd')
     boresight = galsim.CelestialCoord(ra0*galsim.degrees, dec0*galsim.degrees)
     factory = BatoidWCSBuilder().makeWCSFactory(
@@ -57,7 +64,8 @@ def make_batoid_wcs(ra0, dec0, rottelpos, obsmjd, band, camera_name):
 
 
 def compute_rotSkyPos(ra0, dec0, rottelpos, obsmjd, band,
-                      camera_name='LsstCam', dxy=100, pixel_scale=0.2):
+                      camera_name='LsstCam', dxy=100, pixel_scale=0.2,
+                      logger=None):
     """
     Compute the nominal rotation angle of the focal plane wrt
     Celestial North using the +y direction in pixel coordinates as the
@@ -83,6 +91,8 @@ def compute_rotSkyPos(ra0, dec0, rottelpos, obsmjd, band,
         angle between North and the +y direction in the focal plane.
     pixel_scale : float [0.2]
         Pixel scale in arcsec.
+    logger : logger.Logger [None]
+        Logger object.
 
     Returns
     -------
@@ -182,7 +192,7 @@ def cte_matrix(npix, cti, ntransfers=20):
     return my_matrix
 
 def get_primary_hdu(opsim_md, det_name, lsst_num='LCA-11021_RTM-000', image_type='SKYEXP',
-                    camera_name='LsstCam', added_keywords={}):
+                    camera_name='LsstCam', added_keywords={}, logger=None):
     """Create a primary HDU for the output raw file with the keywords
     needed to process with the LSST Stack."""
     phdu = fits.PrimaryHDU()
@@ -211,7 +221,8 @@ def get_primary_hdu(opsim_md, det_name, lsst_num='LCA-11021_RTM-000', image_type
     # Compute rotSkyPos instead of using likely inconsistent values
     # from the instance catalog or opsim db.
     phdu.header['ROTANGLE'] = compute_rotSkyPos(
-        ratel, dectel, rottelpos, mjd_obs, band, camera_name=camera_name)
+        ratel, dectel, rottelpos, mjd_obs, band, camera_name=camera_name,
+        logger=logger)
     phdu.header['MJD-OBS'] = mjd_obs
     phdu.header['FILTER'] = band
     phdu.header['HASTART'] = opsim_md.getHourAngle(mjd_obs, ratel)
@@ -411,7 +422,7 @@ class CameraReadout(ExtraOutputBuilder):
         image_type = base.get('image_type', 'SKYEXP')
         hdus = fits.HDUList(
             get_primary_hdu(opsim_md, det_name, image_type=image_type,
-                            camera_name=camera_name))
+                            camera_name=camera_name, logger=logger))
         for amp_num, amp in enumerate(amps):
             channel = 'C' + channels[amp_num]
             amp_info = ccd_readout.ccd[channel]
