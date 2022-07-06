@@ -230,6 +230,7 @@ def get_primary_hdu(opsim_md, det_name, lsst_num='LCA-11021_RTM-000', image_type
         phdu.header['CCDSLOT'] = sensor
         phdu.header['RA'] = ratel
         phdu.header['DEC'] = dectel
+        phdu.header['ROTCOORD'] = 'sky'
     # Compute rotSkyPos instead of using likely inconsistent values
     # from the instance catalog or opsim db.
     phdu.header['ROTANGLE'] = compute_rotSkyPos(
